@@ -127,23 +127,53 @@ This framework is designed to run on [OpenCode Go](https://opencode.ai) — a lo
 
 ---
 
-## ⚠️ Important: When to Use This Framework
+## 🔀 Two Ways to Use This Framework
 
-This orchestrator is designed for **software engineering tasks only**:
+There are two distinct modes — pick the right one for the job.
 
-✅ **Use `pytrader "task"` for:**
+---
+
+### Mode 1 — Automated Pipeline (CLI alias)
+
+```bash
+myapp "your task in quotes"
+```
+
+Best for **autonomous software engineering**. You fire off a task, the agents handle planning, coding, and reviewing end-to-end with auto-routing — minimal interaction needed.
+
+✅ Use this for:
 - Building new features
 - Fixing bugs
 - Reviewing commits before deployment
 - Refactoring code
 
-❌ **Do NOT use for:**
-- Interactive Q&A or conversational help
-- VPS/system status checks
-- Real-time data queries
+❌ Not suited for:
+- Back-and-forth discussions or exploratory questions
+- Tasks where you want to guide the agent step by step
 - Anything requiring mid-flow human interaction
 
-> For interactive tasks, open OpenCode TUI directly and use the planner agent conversationally.
+---
+
+### Mode 2 — Manual Agents via OpenCode TUI (Tab menu)
+
+Open OpenCode in your terminal and press `Tab` to switch between agents manually:
+
+```
+opencode          ← launch the TUI
+Tab               ← cycle through: Planner / Coder / Reviewer
+```
+
+This gives you a **full chatbot experience** — you can talk to each agent conversationally, ask follow-up questions, explore options, and guide the work yourself.
+
+✅ Use this for:
+- Discussing architecture or design decisions
+- Exploratory debugging where you're not sure what the fix is
+- Step-by-step guidance where you want to stay in control
+- Any interactive Q&A with your codebase
+
+---
+
+> **Rule of thumb:** Know exactly what you want built or fixed? → Use the CLI alias. Want to think it through with an agent first? → Use the TUI.
 
 ---
 
@@ -185,14 +215,138 @@ PROJECT_DIR = "/path/to/your/project"
 **5. Add a shell alias**
 ```bash
 # Add to ~/.zshrc or ~/.bashrc
-alias myproject="python /path/to/your/project/.opencode/orchestrator.py"
+# Replace "myapp" with whatever name makes sense for your project
+alias myapp="python /path/to/your-project/.opencode/orchestrator.py"
+
 source ~/.zshrc
 ```
 
+> 💡 The alias name is entirely up to you — `myapp`, `devbot`, `trader`, `shopify-bot`, anything. This becomes the command you type to run the pipeline.
+
 **6. Run!**
 ```bash
-myproject "add a user authentication feature"
+myapp "add a user authentication feature"
 ```
+
+The syntax is always: `your-alias "your task in quotes"`
+
+---
+
+## 🧠 How to Use — Writing Good Prompts
+
+This is a **fire-and-forget pipeline**, not a chat assistant. The prompt you pass in is the only instruction the agents receive — so make it count.
+
+### Syntax
+
+```bash
+myapp "your task here"
+#  ↑         ↑
+#  your      always wrap
+#  alias     in quotes
+```
+
+Replace `myapp` with whatever alias you set up. The task must always be wrapped in double quotes.
+
+### Prompt Formula
+
+```
+[action verb]  +  [specific thing]  +  [optional: file or context]
+```
+
+| Part | Examples |
+|------|---------|
+| Action verb | `add`, `fix`, `refactor`, `review`, `remove`, `update` |
+| Specific thing | feature name, error message, function name, file path |
+| Optional context | `in api/broker.py`, `on the dashboard`, `before deploying` |
+
+---
+
+### ✅ Good Prompts
+
+```bash
+# Feature work
+myapp "add stop loss logic to the order execution module"
+myapp "add a trailing stop feature with configurable percentage"
+myapp "implement position sizing based on account balance"
+
+# Bug fixes
+myapp "fix the KeyError crash in strategy/momentum.py when volume data is missing"
+myapp "fix the race condition in the order queue when two signals fire simultaneously"
+
+# Refactoring
+myapp "refactor the broker connection logic into a dedicated BrokerClient class"
+myapp "extract the indicator calculations from main.py into a separate indicators module"
+
+# Code review
+myapp "review the latest commit before deploying to production"
+myapp "review the risk management changes in the last 3 commits"
+
+# General questions (answered by planner directly, no code written)
+myapp "do I need to rebuild the docker container after pulling the latest changes?"
+myapp "what's the best way to handle WebSocket reconnections in this codebase?"
+```
+
+### ❌ Bad Prompts
+
+```bash
+# Too vague — agents can't act on these
+myapp "help me"
+myapp "something is broken"
+myapp "check my code"
+myapp "review everything"
+myapp "make it better"
+
+# Wrong tool — use OpenCode TUI directly for these
+myapp "can we chat about architecture options?"   # → use TUI interactively
+myapp "what's the server CPU usage?"              # → check your VPS directly
+myapp "show me the latest trade logs"             # → query your DB directly
+```
+
+---
+
+### 🔀 How Routing Works
+
+The planner reads your prompt and decides which pipeline to run — you don't need to specify it:
+
+```bash
+# → triggers full Planner → Coder → Reviewer pipeline
+myapp "add VWAP indicator to the strategy engine"
+
+# → triggers Reviewer only (skips planner + coder)
+myapp "review the latest commit before deploying"
+
+# → answered directly by planner, no code written
+myapp "should I use asyncio or threading for the data feed?"
+```
+
+---
+
+### 💡 Pro Tips
+
+- **Be specific about the file or module** when you know it — it saves the planner from guessing:
+  ```bash
+  # okay
+  myapp "fix the timeout bug"
+
+  # better
+  myapp "fix the timeout bug in api/broker.py on the WebSocket reconnect"
+  ```
+
+- **Include the error message** for bugs:
+  ```bash
+  myapp "fix AttributeError: 'NoneType' object has no attribute 'price' in order_manager.py line 84"
+  ```
+
+- **Scope refactors clearly** — unbounded refactors often produce too-large plans:
+  ```bash
+  # risky — very broad scope
+  myapp "refactor the whole codebase"
+
+  # better — clear scope
+  myapp "refactor the data feed handlers into a single DataFeedManager class"
+  ```
+
+- **You control the approval gate** — after the planner outputs its plan, you'll be asked to approve before any code is written. Read it carefully and type `n` to abort if it doesn't look right.
 
 ---
 
@@ -244,7 +398,7 @@ The reviewer also has a **Critical Issues** section — customise what it blocks
 
 ```python
 # One command triggers the full pipeline
-myproject "add stop loss feature"
+myapp "add stop loss feature"
 
 # Orchestrator automatically:
 # 1. Runs planner → captures structured plan
