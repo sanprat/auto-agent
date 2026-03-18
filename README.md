@@ -1,4 +1,4 @@
-# 🤖 Multi-Agent Dev Pipeline
+# 🤖 autoAgent-opencode
 
 > A platform-agnostic multi-agent framework for software engineering — using specialized smaller models working together to plan, code, and review better than a single large model, at a fraction of the cost.
 
@@ -188,8 +188,8 @@ This gives you a **full chatbot experience** — you can talk to each agent conv
 
 **1. Clone the repo**
 ```bash
-git clone https://github.com/sanprat/multi-agent-dev-pipeline.git
-cd multi-agent-dev-pipeline
+git clone https://github.com/sanprat/autoAgent-opencode.git
+cd autoAgent-opencode
 ```
 
 **2. Copy agent files to your project**
@@ -353,7 +353,7 @@ myapp "should I use asyncio or threading for the data feed?"
 ## 📁 Repository Structure
 
 ```
-multi-agent-dev-pipeline/
+autoAgent-opencode/
 ├── README.md
 ├── LICENSE                          ← MIT
 ├── opencode/
@@ -587,4 +587,4 @@ Built with [OpenCode](https://opencode.ai) and [OpenCode Go](https://opencode.ai
 
 ---
 
-*Built by [PyBankers](https://pybankers.com) — a community for AI developers.*
+*Built by [PyBankers](https://pybankers.com) — a community for developer-traders.*
