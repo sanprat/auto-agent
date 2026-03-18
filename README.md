@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform: OpenCode](https://img.shields.io/badge/Platform-OpenCode-blue.svg)](https://opencode.ai)
-[![Models: Free](https://img.shields.io/badge/Models-Free%20Go%20Models-green.svg)](https://opencode.ai)
+[![Models: OpenCode Go](https://img.shields.io/badge/Models-OpenCode%20Go-green.svg)](https://opencode.ai)
 
 ---
 
@@ -86,13 +86,44 @@ Both passes must agree before approval.
 If the reviewer rejects, the orchestrator automatically routes back to the coder with the issues — no manual intervention needed. Up to 3 retries before escalating to you.
 
 ### 5. Cost Efficient
-Uses free OpenCode Go models by default — the entire pipeline costs **$0**:
+Uses [OpenCode Go](https://opencode.ai) models — **$5 for your first month, then $10/month** for all three models:
 
-| Agent | Model | Cost |
-|-------|-------|------|
-| Planner | Kimi K2.5 | Free |
-| Coder | MiniMax M2.5 | Free |
-| Reviewer | GLM-5 | Free |
+| Agent | Model | Monthly Requests |
+|-------|-------|-----------------|
+| Planner | Kimi K2.5 | ~9,250 |
+| Coder | MiniMax M2.5 | ~100,000 |
+| Reviewer | GLM-5 | ~5,750 |
+
+> **Compare this to:** Claude Opus or GPT-4o at $15–$30 per million tokens with no usage ceiling built in. OpenCode Go gives you predictable flat-rate pricing with generous limits.
+
+---
+
+## 💰 OpenCode Go Pricing & Limits
+
+This framework is designed to run on [OpenCode Go](https://opencode.ai) — a low cost subscription giving reliable access to curated open coding models.
+
+| Plan | Cost |
+|------|------|
+| First month | $5 |
+| Monthly thereafter | $10 |
+
+### Usage Limits per Billing Period
+
+| Limit | Value |
+|-------|-------|
+| Per 5 hours | $12 of usage |
+| Per week | $30 of usage |
+| Per month | $60 of usage |
+
+### Estimated Requests per Month
+
+| Model | Requests/month |
+|-------|---------------|
+| GLM-5 | ~5,750 |
+| Kimi K2.5 | ~9,250 |
+| MiniMax M2.5 | ~100,000 |
+
+> Note: If you reach usage limits, OpenCode falls back to free models automatically. You can also enable balance top-up in the OpenCode console.
 
 ---
 
@@ -112,7 +143,7 @@ This orchestrator is designed for **software engineering tasks only**:
 - Real-time data queries
 - Anything requiring mid-flow human interaction
 
-For interactive tasks, open OpenCode TUI directly and use the planner agent conversationally.
+> For interactive tasks, open OpenCode TUI directly and use the planner agent conversationally.
 
 ---
 
@@ -120,13 +151,14 @@ For interactive tasks, open OpenCode TUI directly and use the planner agent conv
 
 ### Prerequisites
 - [OpenCode CLI](https://opencode.ai) installed
+- [OpenCode Go subscription](https://opencode.ai) ($5 first month, $10/month)
 - Python 3.8+
 
 ### Installation
 
 **1. Clone the repo**
 ```bash
-git clone https://github.com/pybankers/multi-agent-dev-pipeline.git
+git clone https://github.com/sanprat/multi-agent-dev-pipeline.git
 cd multi-agent-dev-pipeline
 ```
 
@@ -138,20 +170,22 @@ cp opencode/opencode.json your-project/.opencode/
 cp opencode/orchestrator.py your-project/.opencode/
 ```
 
-**3. Update the project path in orchestrator.py**
+**3. Connect OpenCode Go**
+```bash
+# Inside OpenCode TUI
+/connect → select OpenCode Go → paste your API key
+```
+
+**4. Update the project path in orchestrator.py**
 ```python
 # Line 20 in orchestrator.py
 PROJECT_DIR = "/path/to/your/project"
 ```
 
-**4. Add a shell alias**
+**5. Add a shell alias**
 ```bash
 # Add to ~/.zshrc or ~/.bashrc
 alias myproject="python /path/to/your/project/.opencode/orchestrator.py"
-```
-
-**5. Reload your shell**
-```bash
 source ~/.zshrc
 ```
 
@@ -176,7 +210,7 @@ multi-agent-dev-pipeline/
 │   ├── opencode.json                ← disables default Build/Plan agents
 │   └── orchestrator.py              ← automates the full pipeline
 └── examples/
-    └── trading-bot/                 ← real world example (Pytrader)
+    └── trading-bot/                 ← real world example
         ├── planner.md               ← domain-specific planner
         ├── coder.md                 ← domain-specific coder
         └── reviewer.md              ← domain-specific reviewer
@@ -243,7 +277,7 @@ Platform-specific implementations coming soon. PRs welcome!
 
 ## 🤝 Contributing
 
-Contributions are welcome! Ideas for contributions:
+Contributions are welcome! Ideas:
 - Platform-specific orchestrators (Claude Code, Cursor, Aider, Codex)
 - Domain-specific agent templates (web app, data pipeline, API service)
 - Additional routing logic
@@ -263,7 +297,7 @@ Free to use, modify, and distribute. No attribution required (but appreciated!).
 
 ## 🙏 Acknowledgements
 
-Built with [OpenCode](https://opencode.ai) and the free Go models:
+Built with [OpenCode](https://opencode.ai) and [OpenCode Go](https://opencode.ai) models:
 - [Kimi K2.5](https://opencode.ai) by Moonshot AI
 - [MiniMax M2.5](https://opencode.ai) by MiniMax
 - [GLM-5](https://opencode.ai) by Zhipu AI
