@@ -1,4 +1,4 @@
-# 🤖 autoAgent
+# 🤖 auto-agent
 
 > A platform-agnostic multi-agent framework for software engineering — using specialized smaller models working together to plan, code, and review better than a single large model, at a fraction of the cost.
 
@@ -188,8 +188,8 @@ This gives you a **full chatbot experience** — you can talk to each agent conv
 
 **1. Clone the repo**
 ```bash
-git clone https://github.com/sanprat/autoAgent.git
-cd autoAgent
+git clone https://github.com/sanprat/auto-agent.git
+cd auto-agent
 ```
 
 **2. Copy agent files to your project**
@@ -353,7 +353,7 @@ myapp "should I use asyncio or threading for the data feed?"
 ## 📁 Repository Structure
 
 ```
-autoAgent/
+auto-agent/
 ├── README.md
 ├── LICENSE                          ← MIT
 ├── opencode/
