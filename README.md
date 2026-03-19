@@ -22,7 +22,7 @@ This framework takes a different approach:
 Three specialized agents, each with a clear role, checking each other's work:
 
 ```
-🧠 Planner  →  💻 Coder  →  🔍 Reviewer
+🧠 Planner  →  💻 Coder  →  🔍 Reviewer  +  ✅ Approver
 ```
 
 The result: **better quality, built-in guardrails, and significantly lower cost.**
@@ -40,10 +40,11 @@ Your task
     ↓
 💻 CODER — implements exactly the plan, commits, pushes
     ↓
-🔍 REVIEWER — double pass review (bugs + security)
+🔍 REVIEWER  +  ✅ APPROVER — two independent verdicts
     ↓
-✅ APPROVED → pull to your server
-❌ CHANGES NEEDED → auto-loops back to coder (max 3 retries)
+Both APPROVED       → ✅ pull to your server
+Both CHANGES NEEDED → ❌ auto-loops back to coder (max 3 retries)
+Split verdict       → ⚠️  you decide
 ```
 
 ### Smart Routing
@@ -52,8 +53,8 @@ The planner intelligently routes tasks to the right agent:
 
 | Route | When | Flow |
 |-------|------|------|
-| `[ROUTE: coder]` | Feature, fix, or bug | Planner → Coder → Reviewer |
-| `[ROUTE: reviewer]` | Check a commit | Reviewer only |
+| `[ROUTE: coder]` | Feature, fix, or bug | Planner → Coder → Reviewer + Approver |
+| `[ROUTE: reviewer]` | Check a commit | Reviewer + Approver only |
 | `[ROUTE: none]` | General question | Planner answers directly |
 
 ---
@@ -75,12 +76,15 @@ Review the plan above carefully.
 Proceed? (yes/y or no/n):
 ```
 
-### 3. Double Pass Review
-The reviewer runs two independent passes on every commit:
-- **Pass 1** — Bug & logic review
-- **Pass 2** — Security & quality review
+### 3. Two-Agent Consensus Review
+Every commit goes through two completely independent agents before any verdict is issued:
+- **Reviewer (GLM-5)** — first pass: bugs, logic errors, security, code quality
+- **Approver (MiniMax M2.7)** — independent second opinion, does not see the reviewer's verdict
 
-Both passes must agree before approval.
+Three possible outcomes:
+- Both approve → ✅ deploy
+- Both reject → ❌ auto-route back to coder
+- Split verdict → ⚠️ you decide
 
 ### 4. Auto Retry Loop
 If the reviewer rejects, the orchestrator automatically routes back to the coder with the issues — no manual intervention needed. Up to 3 retries before escalating to you.
@@ -93,6 +97,7 @@ Uses [OpenCode Go](https://opencode.ai) models — **$5 for your first month, th
 | Planner | Kimi K2.5 | ~9,250 |
 | Coder | MiniMax M2.5 | ~100,000 |
 | Reviewer | GLM-5 | ~5,750 |
+| Approver | MiniMax M2.7 | ~5,750 |
 
 > **Compare this to:** Claude Opus or GPT-4o at $15–$30 per million tokens with no usage ceiling built in. OpenCode Go gives you predictable flat-rate pricing with generous limits.
 
@@ -298,7 +303,7 @@ myapp "make it better"
 
 # Wrong tool — use OpenCode TUI directly for these
 myapp "can we chat about architecture options?"   # → use TUI interactively
-myapp "what's the server CPU usage?"              # → check your VPS directly
+myapp "what's the server CPU usage?"              # → check your server directly
 myapp "show me the latest trade logs"             # → query your DB directly
 ```
 
@@ -360,14 +365,16 @@ auto-agent/
 │   ├── agents/
 │   │   ├── planner.md               ← Kimi K2.5
 │   │   ├── coder.md                 ← MiniMax M2.5
-│   │   └── reviewer.md              ← GLM-5 (double pass)
+│   │   ├── reviewer.md              ← GLM-5 (first reviewer)
+│   │   └── approver.md              ← MiniMax M2.7 (final approver)
 │   ├── opencode.json                ← disables default Build/Plan agents
 │   └── orchestrator.py              ← automates the full pipeline
 └── examples/
     └── trading-bot/                 ← real world example
         ├── planner.md               ← domain-specific planner
         ├── coder.md                 ← domain-specific coder
-        └── reviewer.md              ← domain-specific reviewer
+        ├── reviewer.md              ← domain-specific reviewer
+        └── approver.md              ← domain-specific approver
 ```
 
 ---
@@ -391,7 +398,7 @@ What it does:
 - If approved, routes to the **Coder** (MiniMax M2.5) with the plan
 - Runs the **Reviewer** (GLM-5) in a double pass — bugs/logic, then security/quality
 - If rejected, automatically re-prompts the Coder with the reviewer's issues (up to 3 retries)
-- Notifies you to `git pull` to your VPS on final approval
+- Notifies you to `git pull` to your server on final approval
 
 The only line you need to change:
 ```python
@@ -413,7 +420,7 @@ MAX_RETRY_LOOPS = 3
 This is the system prompt that turns Kimi K2.5 into your planner agent. It handles the first step of every pipeline run.
 
 What it does:
-- Detects intent from your prompt — coding task, review request, general question, or VPS/system check
+- Detects intent from your prompt — coding task, review request, general question, or server/system check
 - Assigns the correct route tag (`[ROUTE: coder]`, `[ROUTE: reviewer]`, `[ROUTE: monitor]`, `[ROUTE: none]`)
 - For coding tasks: produces a structured plan with files to modify, step-by-step instructions, risks, and definition of done
 - For review tasks: summarises what the reviewer should check
@@ -464,29 +471,43 @@ Update the **Project Context** block so the coder knows your stack. You can also
 
 ### `reviewer.md` — The Reviewer Agent System Prompt
 **Model: `opencode-go/glm-5`**
-**Edit required: Yes — Critical Issues section**
+**Edit required: Yes — Project Context + Critical Issues section**
 
-The system prompt for GLM-5. Runs after every coder push — or directly if you route a review task.
+The first of two independent review agents. Runs immediately after the coder pushes.
 
 What it does:
 - Detects intent — refuses to plan or code, only reviews
-- Runs **Pass 1** (bugs, trading logic errors, missing error handling, breaking changes)
-- Runs **Pass 2** (security, hardcoded secrets, code quality, test coverage, Docker/env changes)
-- Both passes must complete before a verdict is issued
-- Outputs `✅ APPROVED` or `❌ CHANGES NEEDED` with specific issues listed per pass
-- If approved, confirms it's safe to pull to VPS
-- If rejected, tells the orchestrator exactly what to fix — the orchestrator feeds this back to the coder automatically
+- Reviews the latest commit for logic errors, security issues, missing error handling, and breaking changes
+- Outputs `✅ APPROVED` or `❌ CHANGES NEEDED` with specific issues listed
+- If approved, passes to the approver agent for the final independent verdict
+- If rejected, the orchestrator feeds the issues back to the coder automatically
 
-The most important section to customise is **Critical Issues** — the reviewer will hard-block any commit that triggers these:
+Customise the **Critical Issues** block for your project's domain-specific rules:
 ```markdown
 ### 🔴 Critical (must block merge)
-- Trading logic errors
-- Hardcoded secrets or credentials
-- Missing error handling in trade execution or API calls
-- Breaking changes without backward compatibility
+- No raw SQL queries — use ORM only
+- No changes to payment logic without a feature flag
+- All API endpoints must have authentication
 ```
 
-Add your own domain-specific rules here. Everything in this section becomes a mandatory gate on every single commit.
+---
+
+### `approver.md` — The Approver Agent System Prompt
+**Model: `opencode-go/minimax-m2.7`**
+**Edit required: Yes — Project Context + Critical Issues section**
+
+The final gatekeeper before deployment. Runs after the reviewer, completely independently — it does not see the reviewer's verdict and forms its own opinion.
+
+What it does:
+- Detects intent — refuses to plan or code, only approves
+- Reviews the same commit independently for the same categories (logic, security, quality, config)
+- Outputs `✅ APPROVED` or `❌ CHANGES NEEDED` with its own findings
+- The orchestrator then compares both verdicts:
+  - Both approve → deploy
+  - Both reject → back to coder (auto-retry)
+  - Split → asks you to decide
+
+Customise the **Critical Issues** block to match your project — both agents should enforce the same rules so neither can be the weak link.
 
 ---
 
@@ -497,7 +518,8 @@ Add your own domain-specific rules here. Everything in this section becomes a ma
 | `orchestrator.py` | — | Yes, once | `PROJECT_DIR` on line 20 |
 | `planner.md` | Kimi K2.5 | Yes | Project Context block |
 | `coder.md` | MiniMax M2.5 | Yes | Project Context + coding rules |
-| `reviewer.md` | GLM-5 | Yes | Critical Issues block |
+| `reviewer.md` | GLM-5 | Yes | Project Context + Critical Issues block |
+| `approver.md` | MiniMax M2.7 | Yes | Project Context + Critical Issues block |
 
 ---
 
@@ -533,9 +555,12 @@ myapp "add stop loss feature"
 # 1. Runs planner → captures structured plan
 # 2. Pauses for your approval
 # 3. Runs coder with the plan → commits + pushes
-# 4. Runs reviewer (double pass) → reads verdict
-# 5. If APPROVED → notifies you to deploy
-# 6. If CHANGES NEEDED → loops back to coder (max 3x)
+# 4. Runs reviewer (GLM-5) independently
+# 5. Runs approver (MiniMax M2.7) independently
+# 6. Evaluates consensus:
+#    - Both approved → notify you to deploy
+#    - Both rejected → loops back to coder (max 3x)
+#    - Split verdict → asks you to decide
 ```
 
 Each agent runs in a **fresh isolated session** — no context drift, no role confusion.
