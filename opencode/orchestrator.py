@@ -7,6 +7,8 @@ Planner (Kimi K2.5) → [Human Approval] → Smart Route
     → [ROUTE: reviewer] → Reviewer (GLM-5) + Approver (MiniMax M2.7) → Consensus
     → [ROUTE: coder]    → Coder (MiniMax M2.5) → Reviewer + Approver → Consensus
 
+Pre-flight: Git status is automatically checked and injected into planner context.
+
 Consensus rules:
     Both APPROVED       → ✅ Deploy
     Both CHANGES NEEDED → ❌ Auto-route to coder
@@ -43,6 +45,61 @@ def print_divider():
 
 def timestamp():
     return datetime.now().strftime("%H:%M:%S")
+
+def get_git_context() -> str:
+    """
+    Check git status before running planner.
+    Returns a git context string injected into the planner prompt.
+    """
+    try:
+        # Check for unpushed commits
+        unpushed = subprocess.run(
+            ["git", "log", "origin/main..HEAD", "--oneline"],
+            capture_output=True, text=True, cwd=PROJECT_DIR
+        )
+
+        # Check for uncommitted changes
+        status = subprocess.run(
+            ["git", "status", "--short"],
+            capture_output=True, text=True, cwd=PROJECT_DIR
+        )
+
+        # Check current branch
+        branch = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True, text=True, cwd=PROJECT_DIR
+        )
+
+        unpushed_commits = unpushed.stdout.strip()
+        uncommitted_changes = status.stdout.strip()
+        current_branch = branch.stdout.strip()
+
+        context_lines = ["\n--- GIT CONTEXT (auto-detected) ---"]
+        context_lines.append(f"Branch: {current_branch}")
+
+        if unpushed_commits:
+            context_lines.append(f"⚠️  Unpushed commits detected:\n{unpushed_commits}")
+        else:
+            context_lines.append("✅ All commits are pushed to remote.")
+
+        if uncommitted_changes:
+            context_lines.append(f"⚠️  Uncommitted changes detected:\n{uncommitted_changes}")
+        else:
+            context_lines.append("✅ Working tree is clean — no uncommitted changes.")
+
+        context_lines.append("--- END GIT CONTEXT ---\n")
+
+        git_context = "\n".join(context_lines)
+        print(f"\n  🔍 Git pre-flight check:")
+        print(f"     Branch: {current_branch}")
+        print(f"     Unpushed commits: {'Yes' if unpushed_commits else 'None'}")
+        print(f"     Uncommitted changes: {'Yes' if uncommitted_changes else 'None'}")
+
+        return git_context
+
+    except Exception as e:
+        print(f"  ⚠️  Git pre-flight check failed: {e}")
+        return "\n--- GIT CONTEXT ---\nUnable to check git status automatically.\n--- END GIT CONTEXT ---\n"
 
 def run_agent(agent: str, prompt: str) -> str:
     """Run an OpenCode agent, stream output in real time, and return full output."""
@@ -255,12 +312,21 @@ def main():
     sys.stdout.flush()
 
     # ─────────────────────────────────────
-    # STEP 1: PLANNER
+    # PRE-FLIGHT: GIT STATUS CHECK
+    # ─────────────────────────────────────
+    print_divider()
+    print("  🔍 Running git pre-flight check...")
+    git_context = get_git_context()
+    print_divider()
+
+    # ─────────────────────────────────────
+    # STEP 1: PLANNER (with git context injected)
     # ─────────────────────────────────────
     print_banner("planner", "Kimi K2.5", "1 → PLANNER")
+    planner_prompt = f"{git_context}User task: {task}"
     plan = run_agent(
         agent="planner",
-        prompt=task
+        prompt=planner_prompt
     )
 
     if not plan:
