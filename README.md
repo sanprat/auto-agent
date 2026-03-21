@@ -34,7 +34,9 @@ The result: **better quality, built-in guardrails, and significantly lower cost.
 ```
 Your task
     ↓
-🧠 PLANNER — breaks task into clear steps
+🔍 PRE-FLIGHT — git status auto-checked and injected into planner context
+    ↓
+🧠 PLANNER — breaks task into clear steps (aware of unpushed/uncommitted state)
     ↓
 [Human reviews the plan — approves or rejects]
     ↓
@@ -61,14 +63,22 @@ The planner intelligently routes tasks to the right agent:
 
 ## ✨ Key Features
 
-### 1. Role Boundaries with Intent Detection
+### 1. Git Pre-Flight Check
+Before the planner even sees your task, the orchestrator automatically checks your git state and injects it as context:
+- Current branch
+- Any unpushed commits
+- Any uncommitted changes
+
+This means the planner always knows your repo's state without you having to describe it. If you have uncommitted changes or unpushed commits, it factors that into the plan automatically.
+
+### 2. Role Boundaries with Intent Detection
 Each agent detects when it's being asked to do the wrong job and redirects:
 ```
 User asks coder: "I have a problem, not sure what to do"
 Coder responds: "❌ Planning is not my job. Please switch to the planner agent."
 ```
 
-### 2. Human Approval Gate
+### 3. Human Approval Gate
 After planning, the pipeline pauses for your review before any code is written:
 ```
 ⚠️  HUMAN APPROVAL REQUIRED
@@ -76,7 +86,7 @@ Review the plan above carefully.
 Proceed? (yes/y or no/n):
 ```
 
-### 3. Two-Agent Consensus Review
+### 4. Two-Agent Consensus Review
 Every commit goes through two completely independent agents before any verdict is issued:
 - **Reviewer (GLM-5)** — first pass: bugs, logic errors, security, code quality
 - **Approver (MiniMax M2.7)** — independent second opinion, does not see the reviewer's verdict
@@ -86,10 +96,10 @@ Three possible outcomes:
 - Both reject → ❌ auto-route back to coder
 - Split verdict → ⚠️ you decide
 
-### 4. Auto Retry Loop
+### 5. Auto Retry Loop
 If the reviewer rejects, the orchestrator automatically routes back to the coder with the issues — no manual intervention needed. Up to 3 retries before escalating to you.
 
-### 5. Cost Efficient
+### 6. Cost Efficient
 Uses [OpenCode Go](https://opencode.ai) models — **$5 for your first month, then $10/month** for all three models:
 
 | Agent | Model | Monthly Requests |
@@ -392,12 +402,14 @@ The Python script that runs the entire automated flow. You invoke it via your sh
 
 What it does:
 - Accepts your task as a quoted CLI argument: `myapp "your task"`
-- Runs the **Planner** (Kimi K2.5) and streams its output in real time
+- Runs a **git pre-flight check** before anything else — detects current branch, unpushed commits, and uncommitted changes, then injects this context directly into the planner prompt so it can make informed decisions
+- Runs the **Planner** (Kimi K2.5) with the git context already included
 - Detects the route tag the planner embeds — `[ROUTE: coder]`, `[ROUTE: reviewer]`, or `[ROUTE: none]`
 - Pauses at a **human approval gate** before any code is written
 - If approved, routes to the **Coder** (MiniMax M2.5) with the plan
-- Runs the **Reviewer** (GLM-5) in a double pass — bugs/logic, then security/quality
-- If rejected, automatically re-prompts the Coder with the reviewer's issues (up to 3 retries)
+- Runs **Reviewer** (GLM-5) and **Approver** (MiniMax M2.7) independently — consensus decides the outcome
+- If both reject, automatically re-prompts the Coder with the combined issues (up to 3 retries)
+- On a split verdict, shows the flagged issues and asks you to decide
 - Notifies you to `git pull` to your server on final approval
 
 The only line you need to change:
@@ -406,7 +418,7 @@ The only line you need to change:
 PROJECT_DIR = "/path/to/your/project"
 ```
 
-The retry limit is also configurable if you want more or fewer loops:
+The retry limit is also configurable:
 ```python
 MAX_RETRY_LOOPS = 3
 ```
@@ -554,12 +566,14 @@ The reviewer also has a **Critical Issues** section — customise what it blocks
 myapp "add stop loss feature"
 
 # Orchestrator automatically:
-# 1. Runs planner → captures structured plan
-# 2. Pauses for your approval
-# 3. Runs coder with the plan → commits + pushes
-# 4. Runs reviewer (GLM-5) independently
-# 5. Runs approver (MiniMax M2.7) independently
-# 6. Evaluates consensus:
+# 1. Runs git pre-flight — checks branch, unpushed commits, uncommitted changes
+# 2. Injects git context into planner prompt
+# 3. Runs planner → captures structured plan
+# 4. Pauses for your approval
+# 5. Runs coder with the plan → commits + pushes
+# 6. Runs reviewer (GLM-5) independently
+# 7. Runs approver (MiniMax M2.7) independently
+# 8. Evaluates consensus:
 #    - Both approved → notify you to deploy
 #    - Both rejected → loops back to coder (max 3x)
 #    - Split verdict → asks you to decide
