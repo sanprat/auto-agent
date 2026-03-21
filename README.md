@@ -420,12 +420,12 @@ MAX_RETRY_LOOPS = 3
 This is the system prompt that turns Kimi K2.5 into your planner agent. It handles the first step of every pipeline run.
 
 What it does:
-- Detects intent from your prompt — coding task, review request, general question, or server/system check
-- Assigns the correct route tag (`[ROUTE: coder]`, `[ROUTE: reviewer]`, `[ROUTE: monitor]`, `[ROUTE: none]`)
+- Acts as a **thinker and advisor** — reasons deeply, answers anything, but never executes
+- Detects intent across six categories: coding task, review request, committed-but-not-pushed, git commit, general question, or error/debug scenario
 - For coding tasks: produces a structured plan with files to modify, step-by-step instructions, risks, and definition of done
-- For review tasks: summarises what the reviewer should check
-- For general questions: answers directly without triggering the pipeline
-- Always ends with a human approval gate before handing off
+- For committed-but-not-pushed: creates a two-step plan — coder pushes first, then reviewer takes over automatically
+- For general questions (git status, server checks, system health, etc.): answers directly with exact bash commands for you to run manually — no approval gate, no agent handoff
+- Always ends coding/review responses with a human approval gate before handing off
 
 Update the **Project Context** block to match your stack:
 ```markdown
@@ -450,9 +450,11 @@ The system prompt for MiniMax M2.5. It receives the approved plan from the orche
 
 What it does:
 - Detects intent — refuses planning or review requests and redirects to the correct agent
+- Handles a special case: if the planner instructs it to push an unpushed commit, it pushes only — no new code written
 - Implements only what the plan specifies — does not touch unrelated code
-- Follows strict coding rules: no hardcoded secrets, always handle exceptions, validate trade inputs, follow existing naming conventions
-- Creates migration files if DB changes are needed (never modifies the DB directly)
+- Follows strict coding rules: no hardcoded secrets, always handle exceptions, validate inputs, follow existing naming conventions
+- Handles the full git workflow: checks version control, shows uncommitted changes, stages, commits with conventional format, and pushes
+- Handles unversioned projects: detects missing git repo, asks before running `git init`, optionally connects to a remote URL you provide
 - Commits using conventional commit format (`feat:`, `fix:`, `refactor:`, `test:`, `chore:`) with a detailed message
 - Pushes to the correct branch and reports files changed, commit hash, and branch name
 - Ends every response by directing you to switch to the reviewer agent
