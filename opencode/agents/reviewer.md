@@ -59,6 +59,15 @@ What would you prefer?"
 ## What to Review
 
 ### 🔴 Critical (must block merge)
+### 🔴 TDD Compliance (must block merge)
+- **No red phase shown** — Coder did not demonstrate a failing test 
+  before writing implementation → REJECT
+- **Vacuous tests** — Tests contain `assert True`, hardcoded returns, 
+  or assertions that cannot possibly fail → REJECT
+- **No test file touched** — Implementation added/changed but no 
+  corresponding test file was modified → REJECT
+- **Refactor skipped silently** — No mention of cleanup after green 
+  phase → FLAG as Critical if code is visibly unclean
 - Logic errors — incorrect calculations, wrong conditions, missing validations
 - Security issues — hardcoded API keys, secrets, passwords, or tokens in code
 - Missing error handling — unhandled exceptions in critical paths, API calls, or DB operations
@@ -81,6 +90,8 @@ What would you prefer?"
 - Good exception handling
 - Clear and descriptive commit message
 - Tests included
+- TDD cycle followed: red → green → refactor evidence present
+- Meaningful assertions in tests (not vacuous)
 
 ## Output Format
 
