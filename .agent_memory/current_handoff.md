@@ -1,25 +1,24 @@
 # Agent Memory Handoff - June 13, 2026
 
 ## Task Summary
-- Identified that the OpenCode/OpenRouter API call timed out with a `ReadTimeout` error after 30 seconds. This happened because the reasoning model (`deepseek-v4-pro`) takes more time to complete its reasoning steps.
-- Increased the main orchestrator request timeout from `30` seconds to `180` seconds inside `orchestrator/orchestrator.py` to allow the reasoning model sufficient time to complete its plan.
-- Rebuilt and restarted the AIOS docker containers using `docker compose up -d --build` to deploy the timeout fix.
-- Cleaned up legacy and unused workers (`freebuff` and `opencode`) from the system.
-- Simplified `orchestrator/orchestrator.py` system prompt to target only `cmd` and `browser` workers, and cleaned up interception/routing code to fix double-routing and execution interception bugs.
+- Identified that the Telegram bot crashed due to a missing `memory_manager` import in `telegram/bot.py`.
+- Resolved the thread blocking issue of the Telegram bot's `getUpdates` polling loop by running natural language planning and sequential execution tasks inside separate background daemon threads.
+- Added raw API error output logging for non-200 responses in `send_message` to help debug Markdown formatting errors.
+- Enhanced the final report formatter in `bot.py` to extract and display output logs (such as the localtunnel public URL) in code blocks, ensuring users get their URL on Telegram.
+- Synced the container-side fixes for `workers/cmd_worker.py` (process registry, cleanup terminating method, non-blocking startup logs matching, robust crash checks) and `database/db.py` to the host workspace, compiled them, committed, and pushed to remote GitHub.
 
 ## Success/Failure Status
-- Success. Legacy workers deleted and registration updated in `workers/manager.py`.
-- Success. Orchestrator system prompt and task parsing cleaned up.
-- Success. Verified syntax check on all modified Python files.
-- Success. Rebuilt and restarted the `aios-orchestrator` container using `docker compose up -d --build` to apply the cleanup.
+- Success. All modifications compiled and verified.
+- Success. Docker containers rebuilt and restarted via `docker compose up -d --build`.
+- Success. Git changes pushed to remote repository (`8c10b1f`).
+- Success. Telegram polling is live and active.
 
 ## Files Created / Modified
-- [x] `orchestrator/orchestrator.py` (Increased timeout, simplified prompt, updated routing)
-- [x] `workers/manager.py` (Removed legacy workers registration)
-- [x] `workers/freebuff_worker.py` (Deleted)
-- [x] `workers/opencode_worker.py` (Deleted)
-- [x] `.agent_memory/current_handoff.md` (Updated with latest task results)
+- [x] `telegram/bot.py` (Imported memory_manager, added background threading, output URL parsing, and error logger)
+- [x] `workers/cmd_worker.py` (Synced child coder fixes: process registry, cleanup, crash detection, line parsing)
+- [x] `database/db.py` (Synced child coder database updates)
+- [x] `.agent_memory/current_handoff.md` (Updated memory logs)
 
 ## Key Decisions
-- **Worker Consolidation:** Retired single-file legacy workers (`freebuff` and `opencode`) in favor of agentic pipeline orchestrations run directly via `cmd` (e.g. using `/Users/sanim/.opencode/bin/opencode` or `python experiments/auto-agent/opencode/orchestrator.py`).
-- **Retained Core Workers:** Kept `cmd_worker` (for command-line script running and orchestrations) and `browser_worker` (for playwright/crawler requests) as they perform vital operational tasks.
+- **Threading Model:** Used standard Python `threading.Thread` in `telegram/bot.py` for asynchronous NL planning and execution tasks, making the Telegram getUpdates loop completely immune to delays caused by blocking shell commands (e.g. child orchestrators, server startups, or tunnels).
+- **Consolidation of Internal Agent Fixes:** Retrieved the dirty fixes applied directly inside the running container by the internal coder agent, merged them on the host, and verified them to avoid duplicate effort.
