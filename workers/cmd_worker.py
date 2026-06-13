@@ -18,7 +18,65 @@ class CommandCodeWorker(BaseWorker):
                 self.log(task_id, "ERROR", f"Cwd directory does not exist: {run_cwd}")
                 return False, f"Directory not found: {run_cwd}"
         
-        # Execute shell command
+        # Check if the command is a long-running service (starts localtunnel, http.server, or tunnel_manager)
+        is_background_service = any(x in command for x in ["tunnel_manager.py", "localtunnel", "lt ", "http.server"])
+        
+        if is_background_service:
+            self.log(task_id, "INFO", "Detected background service command. Running via Popen...")
+            try:
+                import time
+                import select
+                process = subprocess.Popen(
+                    command,
+                    shell=True,
+                    cwd=run_cwd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    preexec_fn=os.setsid
+                )
+                
+                # Read stdout line by line to capture the URL or startup logs
+                output_lines = []
+                start_time = time.time()
+                
+                # Wait up to 15 seconds to capture startup logs / URL
+                while time.time() - start_time < 15:
+                    if process.poll() is not None:
+                        break
+                    
+                    ready, _, _ = select.select([process.stdout], [], [], 0.5)
+                    if ready:
+                        line = process.stdout.readline()
+                        if not line:
+                            break
+                        output_lines.append(line)
+                        if "url is:" in line.lower() or "url:" in line.lower() or "http" in line.lower():
+                            time.sleep(1)
+                            break
+                    else:
+                        time.sleep(0.1)
+                
+                # Read any remaining output that is ready
+                while True:
+                    ready, _, _ = select.select([process.stdout], [], [], 0.1)
+                    if ready:
+                        line = process.stdout.readline()
+                        if not line:
+                            break
+                        output_lines.append(line)
+                    else:
+                        break
+                
+                output = "".join(output_lines)
+                self.log(task_id, "INFO", "Background service started successfully.")
+                return True, f"Service started in background.\n\nCaptured Output:\n{output}"
+                
+            except Exception as e:
+                self.log(task_id, "ERROR", f"Background execution error: {e}")
+                return False, str(e)
+        
+        # Execute standard blocking shell command
         try:
             # Run in shell to support piping/redirection if requested
             process = subprocess.run(
