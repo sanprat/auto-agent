@@ -1,0 +1,32 @@
+# docker-compose.yml - Personal AI OS (aios)
+
+version: '3.8'
+
+services:
+  aios:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aios-orchestrator
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - SUPERMEMORY_API_KEY=${SUPERMEMORY_API_KEY}
+      - OPENCODE_API_KEY=${OPENCODE_API_KEY}
+      - OPENCODE_CONFIG_DIR=/app/data/opencode
+    volumes:
+      # Mount DB and Logs to host-mounted named volumes or folders
+      - aios-db:/app/data
+      - aios-logs:/app/logs
+      # Mount configuration so credentials can be edited on the host
+      - ./configs/config.yaml:/app/configs/config.yaml
+      # Mirror user's parent projects directory so internal workers can find and run tests/commands
+      - /Users/sanim/Downloads/sunny/Python/AIML:/Users/sanim/Downloads/sunny/Python/AIML
+
+volumes:
+  aios-db:
+  aios-logs:

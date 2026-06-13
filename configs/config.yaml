@@ -1,0 +1,32 @@
+# Personal AI OS (aios) Configuration
+
+openrouter:
+  api_key: "YOUR_OPENROUTER_API_KEY" # Replace with actual key or set OPENROUTER_API_KEY environment variable
+  model: "google/gemma-4-31b-it:free"
+  base_url: "https://openrouter.ai/api/v1"
+  reasoning_enabled: true
+
+telegram:
+  bot_token: "YOUR_TELEGRAM_BOT_TOKEN" # Replace with actual bot token or set TELEGRAM_BOT_TOKEN
+  chat_id: "YOUR_TELEGRAM_CHAT_ID"     # Replace with your Telegram Chat ID (integer or string) or set TELEGRAM_CHAT_ID
+
+supermemory:
+  api_key: ""                         # Not required for local instances
+  base_url: "http://localhost:3000"   # Local host URL of your Supermemory server
+
+database:
+  sqlite_path: "data/aios.db"
+
+projects:
+  pybankers:
+    path: "/Users/sanim/Downloads/sunny/Python/AIML/Pybankers"
+  Sahas:
+    path: "/Users/sanim/Downloads/sunny/Python/AIML/Pybankers/Sahas"
+  games:
+    path: "/Users/sanim/Downloads/sunny/Python/AIML/Pygames"
+  experiments:
+    path: "/Users/sanim/Downloads/sunny/Python/AIML/AI-Employee/experiments"
+
+logging:
+  level: "INFO"
+  file_path: "logs/aios.log"
