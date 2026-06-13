@@ -138,13 +138,12 @@ class Database:
             )
             conn.commit()
 
-    def get_conversation_history(self, limit=30):
+    def get_conversation_history(self, limit=20):
         with self._get_connection() as conn:
             cursor = conn.execute(
-                "SELECT * FROM conversations ORDER BY id DESC LIMIT ?", (limit,)
+                "SELECT * FROM conversations ORDER BY timestamp ASC LIMIT ?", (limit,)
             )
-            rows = cursor.fetchall()
-            return [dict(row) for row in reversed(rows)]
+            return [dict(row) for row in cursor.fetchall()]
 
     # --- MEMORIES ---
     def set_memory(self, tag, key, value, project_name=None):

@@ -5,6 +5,7 @@ from typing import Dict, Any, List
 import requests
 from configs.config import config
 from database.db import db
+from memory.memory_manager import memory_manager
 from orchestrator.orchestrator import orchestrator
 from orchestrator.resolver import project_resolver
 from planner.planner import task_planner
@@ -34,6 +35,8 @@ class TelegramBot:
         }
         try:
             res = requests.post(url, json=payload, timeout=10)
+            if res.status_code != 200:
+                print(f"Telegram API Error (Status {res.status_code}): {res.text}")
             return res.status_code == 200
         except Exception as e:
             print(f"Error sending Telegram message: {e}")
@@ -150,8 +153,12 @@ class TelegramBot:
             else:
                 self.send_message(chat_id, f"Unknown command: {cmd}\nTry /start, /task, /status, /projects, /logs, /skills")
         else:
-            # Natural Language orchestrator processing
-            self._process_natural_language(chat_id, text)
+            # Natural Language orchestrator processing in background thread
+            threading.Thread(
+                target=self._process_natural_language,
+                args=(chat_id, text),
+                daemon=True
+            ).start()
 
     # --- COMMAND HANDLERS ---
 
@@ -290,7 +297,11 @@ class TelegramBot:
         state = self.approval_state.pop(chat_id)
         if response_text.strip().upper() in ["YES", "Y", "APPROVE"]:
             self.send_message(chat_id, "✅ Plan approved. Starting execution...")
-            self._execute_orchestrated_plan(chat_id, state["plan"])
+            threading.Thread(
+                target=self._execute_orchestrated_plan,
+                args=(chat_id, state["plan"]),
+                daemon=True
+            ).start()
         else:
             self.send_message(chat_id, "❌ Execution cancelled by human operator.")
 
@@ -308,6 +319,22 @@ class TelegramBot:
                 status_emoji = "✅" if t["status"] == "completed" else "❌"
                 v_emoji = "🛡️" if t['verification_status'] == 'verified' else "⚠️" if t['verification_status'] == 'failed' else "❔"
                 report += f"{status_emoji} `{t['id'][:8]}` - {t['description']} ({t['status']} {v_emoji})\n"
+                
+                if t.get("output"):
+                    out = t["output"].strip()
+                    if out:
+                        if len(out) <= 300:
+                            report += f"```\n{out}\n```\n"
+                        else:
+                            # Highlight any lines containing URL/tunnel info
+                            lines = out.splitlines()
+                            url_lines = [line for line in lines if any(k in line.lower() for k in ["url", "http", "tunnel", "loca.lt"])]
+                            if url_lines:
+                                report += f"```\n" + "\n".join(url_lines) + "\n```\n"
+                            else:
+                                fallback_out = lines[:3] + ["..."] + lines[-3:] if len(lines) > 6 else lines
+                                report += f"```\n" + "\n".join(fallback_out) + "\n```\n"
+                
                 if t["status"] == "completed":
                     success_count += 1
                     
