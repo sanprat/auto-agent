@@ -26,7 +26,7 @@ from datetime import datetime
 # ─────────────────────────────────────────
 # CONFIG — update these before first run
 # ─────────────────────────────────────────
-PROJECT_DIR = os.environ.get("PROJECT_DIR", "/path/to/your/project")   # ← change this to your project path
+PROJECT_DIR = os.environ.get("PROJECT_DIR", os.getcwd())   # ← defaults to current working directory
 MAX_RETRY_LOOPS = int(os.environ.get("MAX_RETRY_LOOPS", 3))             # max times coder retries after rejection
 AUTO_APPROVE = False
 
