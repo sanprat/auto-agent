@@ -20,13 +20,15 @@ Usage:
 
 import subprocess
 import sys
+import os
 from datetime import datetime
 
 # ─────────────────────────────────────────
 # CONFIG — update these before first run
 # ─────────────────────────────────────────
-PROJECT_DIR = "/path/to/your/project"   # ← change this to your project path
-MAX_RETRY_LOOPS = 3                     # max times coder retries after rejection
+PROJECT_DIR = os.environ.get("PROJECT_DIR", "/path/to/your/project")   # ← change this to your project path
+MAX_RETRY_LOOPS = int(os.environ.get("MAX_RETRY_LOOPS", 3))             # max times coder retries after rejection
+AUTO_APPROVE = False
 
 # ─────────────────────────────────────────
 # HELPERS
@@ -140,6 +142,15 @@ def detect_route(plan_output: str) -> str:
 
 def ask_human(question: str) -> bool:
     """Ask user a yes/no question and return their decision."""
+    global AUTO_APPROVE
+    if AUTO_APPROVE:
+        print(f"  {question} -> Auto-approved (non-interactive mode)")
+        return True
+        
+    if not sys.stdin.isatty():
+        print(f"  {question} -> Auto-approved (non-TTY stdin detected)")
+        return True
+
     while True:
         try:
             response = input(f"  {question} (yes/y or no/n): ").strip().lower()
@@ -300,11 +311,21 @@ def review_and_fix_loop(initial_coder_prompt: str = None) -> bool:
 # ─────────────────────────────────────────
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: python orchestrator.py \"your task here\"")
+    global AUTO_APPROVE
+    args = sys.argv[1:]
+    
+    if "--yes" in args:
+        AUTO_APPROVE = True
+        args.remove("--yes")
+    elif "-y" in args:
+        AUTO_APPROVE = True
+        args.remove("-y")
+
+    if not args:
+        print("Usage: python orchestrator.py [--yes|-y] \"your task here\"")
         sys.exit(1)
 
-    task = " ".join(sys.argv[1:])
+    task = " ".join(args)
 
     print(f"\n🚀 auto-agent Pipeline Starting")
     print(f"   Task: {task}")

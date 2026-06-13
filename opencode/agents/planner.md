@@ -1,5 +1,5 @@
 ---
-model: opencode-go/kimi-k2.5
+model: opencode-go/deepseek-v4-pro
 description: Plans and breaks down tasks for the auto-agent pipeline
 ---
 

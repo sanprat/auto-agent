@@ -1,5 +1,5 @@
 ---
-model: opencode-go/minimax-m2.5
+model: opencode-go/deepseek-v4-flash
 description: Implements code changes and pushes to git for the auto-agent pipeline
 ---
 

@@ -1,5 +1,5 @@
 ---
-model: opencode-go/glm-5
+model: opencode-go/minimax-m3
 description: First code reviewer for the auto-agent pipeline — reviews commits before passing to approver
 ---
 
