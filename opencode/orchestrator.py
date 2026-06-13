@@ -4,15 +4,14 @@ auto-agent — Multi-Agent Dev Pipeline Orchestrator
 ====================================================
 Planner (DeepSeek v4 Pro) → [Human Approval] → Smart Route
     → [ROUTE: none]     → Planner answers directly, no agents needed
-    → [ROUTE: reviewer] → Reviewer (MiniMax M3) + Approver (Kimi K2.7 Code) → Consensus
-    → [ROUTE: coder]    → Coder (DeepSeek v4 Flash) → Reviewer + Approver → Consensus
+    → [ROUTE: approver] → Approver (Kimi K2.7 Code) → Verdict
+    → [ROUTE: coder]    → Coder (DeepSeek v4 Flash) → Approver (Kimi K2.7 Code) → Verdict
 
 Pre-flight: Git status is automatically checked and injected into planner context.
 
-Consensus rules:
-    Both APPROVED       → ✅ Deploy
-    Both CHANGES NEEDED → ❌ Auto-route to coder
-    Split verdict       → ⚠️  Ask human to decide
+Approval rules:
+    APPROVED       → ✅ Deploy
+    CHANGES NEEDED → ❌ Auto-route to coder
 
 Usage:
     python orchestrator.py "your task here"
@@ -176,21 +175,11 @@ def notify(message: str):
     print("★" * width + "\n")
     sys.stdout.flush()
 
-def run_review_and_approval(attempt: int = 1) -> tuple:
+def run_approval(attempt: int = 1) -> tuple:
     """
-    Run reviewer (MiniMax M3) then approver (Kimi K2.7 Code) independently.
-    Returns (both_approved, both_rejected, is_split, combined, review, approval)
+    Run approver (Kimi K2.7 Code).
+    Returns (app_approved, approval_output)
     """
-    # REVIEWER — MiniMax M3
-    print_banner("reviewer", "MiniMax M3", f"→ REVIEWER (attempt {attempt})")
-    review = run_agent(
-        agent="reviewer",
-        prompt="Review the latest git commit independently. Output APPROVED or CHANGES NEEDED with full details."
-    )
-    if not review:
-        print("❌ Reviewer returned no output. Aborting.")
-        sys.exit(1)
-
     # APPROVER — Kimi K2.7 Code
     print_banner("approver", "Kimi K2.7 Code", f"→ APPROVER (attempt {attempt})")
     approval = run_agent(
@@ -201,67 +190,24 @@ def run_review_and_approval(attempt: int = 1) -> tuple:
         print("❌ Approver returned no output. Aborting.")
         sys.exit(1)
 
-    r_approved = is_approved(review)
-    a_approved = is_approved(approval)
-    both_approved = r_approved and a_approved
-    both_rejected = not r_approved and not a_approved
-    is_split = r_approved != a_approved
+    app_approved = is_approved(approval)
 
-    # Print consensus summary
+    # Print summary
     print_divider()
-    print(f"  📊 REVIEW & APPROVAL CONSENSUS:")
-    print(f"     Reviewer (MiniMax M3):        {'✅ APPROVED' if r_approved else '❌ CHANGES NEEDED'}")
-    print(f"     Approver (Kimi K2.7 Code): {'✅ APPROVED' if a_approved else '❌ CHANGES NEEDED'}")
-
-    if both_approved:
-        print(f"     Result: ✅ CONSENSUS — Both approved")
-    elif both_rejected:
-        print(f"     Result: ❌ CONSENSUS — Both rejected")
-    else:
-        print(f"     Result: ⚠️  SPLIT VERDICT — Human decision required")
+    print(f"  📊 APPROVAL STATUS:")
+    print(f"     Approver (Kimi K2.7 Code): {'✅ APPROVED' if app_approved else '❌ CHANGES NEEDED'}")
     print_divider()
 
-    combined = f"REVIEWER (MiniMax M3):\n{review}\n\nAPPROVER (Kimi K2.7 Code):\n{approval}"
-    return both_approved, both_rejected, is_split, combined, review, approval
-
-def handle_split_verdict(review: str, approval: str, r_approved: bool) -> bool:
-    """
-    Handle split verdict — show flagged issues and ask human to decide.
-    Returns True if human decides to send to coder, False to approve and deploy.
-    """
-    print("\n  ⚠️  SPLIT VERDICT DETECTED")
-    print("  One agent approved, one requested changes.\n")
-
-    if not r_approved:
-        print("  ❌ Reviewer (MiniMax M3) flagged these issues:")
-        print("  " + "─" * 56)
-        lines = [l for l in review.split('\n') if l.strip()]
-        for line in lines[-10:]:
-            print(f"     {line}")
-    else:
-        print("  ❌ Approver (Kimi K2.7 Code) flagged these issues:")
-        print("  " + "─" * 56)
-        lines = [l for l in approval.split('\n') if l.strip()]
-        for line in lines[-10:]:
-            print(f"     {line}")
-
-    print_divider()
-    print("  You decide:")
-    print("  → yes/y = Send to coder to fix the flagged issues")
-    print("  → no/n  = Ignore the flag and approve for deploy")
-    print()
-
-    return ask_human("Send to coder to fix?")
+    return app_approved, approval
 
 def review_and_fix_loop(initial_coder_prompt: str = None) -> bool:
     """
-    Shared loop for both coder and reviewer-only routes.
-    If initial_coder_prompt is None, skips first coder run (reviewer-only route).
+    Shared loop for both coder and approver-only routes.
+    If initial_coder_prompt is None, skips first coder run (approver-only route).
     Returns True if finally approved, False if max retries reached.
     """
     attempt = 0
     code_approved = False
-    combined = ""
     skip_coder_first = initial_coder_prompt is None
     coder_prompt = initial_coder_prompt
 
@@ -276,33 +222,18 @@ def review_and_fix_loop(initial_coder_prompt: str = None) -> bool:
                 print("❌ Coder returned no output. Aborting.")
                 sys.exit(1)
 
-        # Reviewer + Approver consensus
-        both_approved, both_rejected, is_split, combined, review, approval = run_review_and_approval(attempt)
-        r_approved = is_approved(review)
+        # Approver check
+        app_approved, approval_output = run_approval(attempt)
 
-        if both_approved:
+        if app_approved:
             code_approved = True
-
-        elif both_rejected:
+        else:
             if attempt < MAX_RETRY_LOOPS:
-                print(f"\n  🔄 Both rejected. Routing to coder... (attempt {attempt}/{MAX_RETRY_LOOPS})")
-                coder_prompt = f"Both reviewer and approver rejected the commit. Fix these issues:\n\n{combined}"
+                print(f"\n  🔄 Rejected by Approver. Routing to coder to fix... (attempt {attempt}/{MAX_RETRY_LOOPS})")
+                coder_prompt = f"Approver rejected the commit. Fix these issues:\n\n{approval_output}"
                 skip_coder_first = False
             else:
                 print(f"\n  ❌ Max retries ({MAX_RETRY_LOOPS}) reached. Manual intervention needed.")
-
-        elif is_split:
-            send_to_coder = handle_split_verdict(review, approval, r_approved)
-            if send_to_coder:
-                if attempt < MAX_RETRY_LOOPS:
-                    flagged = review if not r_approved else approval
-                    coder_prompt = f"One agent flagged these issues. Fix them:\n\n{flagged}"
-                    skip_coder_first = False
-                else:
-                    print(f"\n  ❌ Max retries ({MAX_RETRY_LOOPS}) reached. Manual intervention needed.")
-            else:
-                print("\n  ✅ Human overriding split verdict — approving for deploy.")
-                code_approved = True
 
     return code_approved
 
@@ -387,13 +318,13 @@ def main():
     sys.stdout.flush()
 
     # ─────────────────────────────────────
-    # ROUTE: REVIEWER + APPROVER ONLY
+    # ROUTE: APPROVER ONLY
     # ─────────────────────────────────────
-    if route == "reviewer":
+    if route == "reviewer" or route == "approver":
         final_approved = review_and_fix_loop(initial_coder_prompt=None)
 
     # ─────────────────────────────────────
-    # ROUTE: CODER → REVIEWER + APPROVER
+    # ROUTE: CODER → APPROVER
     # ─────────────────────────────────────
     else:
         final_approved = review_and_fix_loop(
@@ -404,7 +335,7 @@ def main():
     # FINAL OUTCOME
     # ─────────────────────────────────────
     if final_approved:
-        notify("✅ REVIEWER & APPROVER CONSENSUS — Pull to your server when ready:\n   git pull origin main")
+        notify("✅ APPROVER SIGN-OFF — Pull to your server when ready:\n   git pull origin main")
     else:
         notify("❌ CHANGES NEEDED — Review the issues above and re-run.")
         sys.exit(1)
