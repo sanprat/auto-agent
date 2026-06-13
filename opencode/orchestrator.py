@@ -2,10 +2,10 @@
 """
 auto-agent — Multi-Agent Dev Pipeline Orchestrator
 ====================================================
-Planner (Kimi K2.5) → [Human Approval] → Smart Route
+Planner (DeepSeek v4 Pro) → [Human Approval] → Smart Route
     → [ROUTE: none]     → Planner answers directly, no agents needed
-    → [ROUTE: reviewer] → Reviewer (GLM-5) + Approver (MiniMax M2.7) → Consensus
-    → [ROUTE: coder]    → Coder (MiniMax M2.5) → Reviewer + Approver → Consensus
+    → [ROUTE: reviewer] → Reviewer (MiniMax M3) + Approver (Mimo v2.5 Pro) → Consensus
+    → [ROUTE: coder]    → Coder (DeepSeek v4 Flash) → Reviewer + Approver → Consensus
 
 Pre-flight: Git status is automatically checked and injected into planner context.
 
@@ -178,11 +178,11 @@ def notify(message: str):
 
 def run_review_and_approval(attempt: int = 1) -> tuple:
     """
-    Run reviewer (GLM-5) then approver (MiniMax M2.7) independently.
+    Run reviewer (MiniMax M3) then approver (Mimo v2.5 Pro) independently.
     Returns (both_approved, both_rejected, is_split, combined, review, approval)
     """
-    # REVIEWER — GLM-5
-    print_banner("reviewer", "GLM-5", f"→ REVIEWER (attempt {attempt})")
+    # REVIEWER — MiniMax M3
+    print_banner("reviewer", "MiniMax M3", f"→ REVIEWER (attempt {attempt})")
     review = run_agent(
         agent="reviewer",
         prompt="Review the latest git commit independently. Output APPROVED or CHANGES NEEDED with full details."
@@ -191,8 +191,8 @@ def run_review_and_approval(attempt: int = 1) -> tuple:
         print("❌ Reviewer returned no output. Aborting.")
         sys.exit(1)
 
-    # APPROVER — MiniMax M2.7
-    print_banner("approver", "MiniMax M2.7", f"→ APPROVER (attempt {attempt})")
+    # APPROVER — Mimo v2.5 Pro
+    print_banner("approver", "Mimo v2.5 Pro", f"→ APPROVER (attempt {attempt})")
     approval = run_agent(
         agent="approver",
         prompt="Review the latest git commit independently for final approval. Output APPROVED or CHANGES NEEDED with full details."
@@ -210,8 +210,8 @@ def run_review_and_approval(attempt: int = 1) -> tuple:
     # Print consensus summary
     print_divider()
     print(f"  📊 REVIEW & APPROVAL CONSENSUS:")
-    print(f"     Reviewer (GLM-5):        {'✅ APPROVED' if r_approved else '❌ CHANGES NEEDED'}")
-    print(f"     Approver (MiniMax M2.7): {'✅ APPROVED' if a_approved else '❌ CHANGES NEEDED'}")
+    print(f"     Reviewer (MiniMax M3):        {'✅ APPROVED' if r_approved else '❌ CHANGES NEEDED'}")
+    print(f"     Approver (Mimo v2.5 Pro): {'✅ APPROVED' if a_approved else '❌ CHANGES NEEDED'}")
 
     if both_approved:
         print(f"     Result: ✅ CONSENSUS — Both approved")
@@ -221,7 +221,7 @@ def run_review_and_approval(attempt: int = 1) -> tuple:
         print(f"     Result: ⚠️  SPLIT VERDICT — Human decision required")
     print_divider()
 
-    combined = f"REVIEWER (GLM-5):\n{review}\n\nAPPROVER (MiniMax M2.7):\n{approval}"
+    combined = f"REVIEWER (MiniMax M3):\n{review}\n\nAPPROVER (Mimo v2.5 Pro):\n{approval}"
     return both_approved, both_rejected, is_split, combined, review, approval
 
 def handle_split_verdict(review: str, approval: str, r_approved: bool) -> bool:
@@ -233,13 +233,13 @@ def handle_split_verdict(review: str, approval: str, r_approved: bool) -> bool:
     print("  One agent approved, one requested changes.\n")
 
     if not r_approved:
-        print("  ❌ Reviewer (GLM-5) flagged these issues:")
+        print("  ❌ Reviewer (MiniMax M3) flagged these issues:")
         print("  " + "─" * 56)
         lines = [l for l in review.split('\n') if l.strip()]
         for line in lines[-10:]:
             print(f"     {line}")
     else:
-        print("  ❌ Approver (MiniMax M2.7) flagged these issues:")
+        print("  ❌ Approver (Mimo v2.5 Pro) flagged these issues:")
         print("  " + "─" * 56)
         lines = [l for l in approval.split('\n') if l.strip()]
         for line in lines[-10:]:
@@ -270,7 +270,7 @@ def review_and_fix_loop(initial_coder_prompt: str = None) -> bool:
 
         # Run coder unless this is reviewer-only first pass
         if not (skip_coder_first and attempt == 1):
-            print_banner("coder", "MiniMax M2.5", f"→ CODER (attempt {attempt}/{MAX_RETRY_LOOPS})")
+            print_banner("coder", "DeepSeek v4 Flash", f"→ CODER (attempt {attempt}/{MAX_RETRY_LOOPS})")
             code_result = run_agent(agent="coder", prompt=coder_prompt)
             if not code_result:
                 print("❌ Coder returned no output. Aborting.")
@@ -343,7 +343,7 @@ def main():
     # ─────────────────────────────────────
     # STEP 1: PLANNER (with git context injected)
     # ─────────────────────────────────────
-    print_banner("planner", "Kimi K2.5", "1 → PLANNER")
+    print_banner("planner", "DeepSeek v4 Pro", "1 → PLANNER")
     planner_prompt = f"{git_context}User task: {task}"
     plan = run_agent(
         agent="planner",
