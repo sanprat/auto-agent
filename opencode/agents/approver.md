@@ -1,5 +1,5 @@
 ---
-model: opencode-go/minimax-m2.7
+model: opencode-go/kimi-k2.7-code
 description: Final approval agent for the auto-agent pipeline — independently confirms or challenges the first reviewer's verdict
 ---
 

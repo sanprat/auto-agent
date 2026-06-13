@@ -4,7 +4,7 @@ auto-agent — Multi-Agent Dev Pipeline Orchestrator
 ====================================================
 Planner (DeepSeek v4 Pro) → [Human Approval] → Smart Route
     → [ROUTE: none]     → Planner answers directly, no agents needed
-    → [ROUTE: reviewer] → Reviewer (MiniMax M3) + Approver (Mimo v2.5 Pro) → Consensus
+    → [ROUTE: reviewer] → Reviewer (MiniMax M3) + Approver (Kimi K2.7 Code) → Consensus
     → [ROUTE: coder]    → Coder (DeepSeek v4 Flash) → Reviewer + Approver → Consensus
 
 Pre-flight: Git status is automatically checked and injected into planner context.
@@ -178,7 +178,7 @@ def notify(message: str):
 
 def run_review_and_approval(attempt: int = 1) -> tuple:
     """
-    Run reviewer (MiniMax M3) then approver (Mimo v2.5 Pro) independently.
+    Run reviewer (MiniMax M3) then approver (Kimi K2.7 Code) independently.
     Returns (both_approved, both_rejected, is_split, combined, review, approval)
     """
     # REVIEWER — MiniMax M3
@@ -191,8 +191,8 @@ def run_review_and_approval(attempt: int = 1) -> tuple:
         print("❌ Reviewer returned no output. Aborting.")
         sys.exit(1)
 
-    # APPROVER — Mimo v2.5 Pro
-    print_banner("approver", "Mimo v2.5 Pro", f"→ APPROVER (attempt {attempt})")
+    # APPROVER — Kimi K2.7 Code
+    print_banner("approver", "Kimi K2.7 Code", f"→ APPROVER (attempt {attempt})")
     approval = run_agent(
         agent="approver",
         prompt="Review the latest git commit independently for final approval. Output APPROVED or CHANGES NEEDED with full details."
@@ -211,7 +211,7 @@ def run_review_and_approval(attempt: int = 1) -> tuple:
     print_divider()
     print(f"  📊 REVIEW & APPROVAL CONSENSUS:")
     print(f"     Reviewer (MiniMax M3):        {'✅ APPROVED' if r_approved else '❌ CHANGES NEEDED'}")
-    print(f"     Approver (Mimo v2.5 Pro): {'✅ APPROVED' if a_approved else '❌ CHANGES NEEDED'}")
+    print(f"     Approver (Kimi K2.7 Code): {'✅ APPROVED' if a_approved else '❌ CHANGES NEEDED'}")
 
     if both_approved:
         print(f"     Result: ✅ CONSENSUS — Both approved")
@@ -221,7 +221,7 @@ def run_review_and_approval(attempt: int = 1) -> tuple:
         print(f"     Result: ⚠️  SPLIT VERDICT — Human decision required")
     print_divider()
 
-    combined = f"REVIEWER (MiniMax M3):\n{review}\n\nAPPROVER (Mimo v2.5 Pro):\n{approval}"
+    combined = f"REVIEWER (MiniMax M3):\n{review}\n\nAPPROVER (Kimi K2.7 Code):\n{approval}"
     return both_approved, both_rejected, is_split, combined, review, approval
 
 def handle_split_verdict(review: str, approval: str, r_approved: bool) -> bool:
@@ -239,7 +239,7 @@ def handle_split_verdict(review: str, approval: str, r_approved: bool) -> bool:
         for line in lines[-10:]:
             print(f"     {line}")
     else:
-        print("  ❌ Approver (Mimo v2.5 Pro) flagged these issues:")
+        print("  ❌ Approver (Kimi K2.7 Code) flagged these issues:")
         print("  " + "─" * 56)
         lines = [l for l in approval.split('\n') if l.strip()]
         for line in lines[-10:]:
